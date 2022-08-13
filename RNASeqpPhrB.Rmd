@@ -1,0 +1,179 @@
+---
+title: "RNASeqPhrB using EBSeq"
+author: "Hope Townsend"
+date: "2/15/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(BiocManager)
+library(EBSeq)
+library(rsem)
+library(tidyverse)
+library(VennDiagram)
+```
+
+### Calculate expression values
+
+```{r Calculate values}
+set.seed(4)
+# Create a count matrix from the count numbers calculated from expression levels (from rsem)
+GeneMatWTobj <- data.matrix(read.table(file="exp3/WT/GeneMatWT.txt"))
+GeneMatBobj <- data.matrix(read.table(file="exp3/BlsA/GeneMatBlsA.txt"))
+# Get a list with the calculated values (EBout)
+  # Mean1: WTL, Mean2: WTD  C1&C2 are means based on normalized read counts, condition order D,L
+SizesW=MedianNorm(GeneMatWTobj)
+SizesB=MedianNorm(GeneMatBobj)
+EBWTout <- EBSeq::EBTest(Data=GeneMatWTobj,sizeFactors=SizesW, Conditions=as.factor(rep(c("L","D"),each=3)), maxround=5)
+EBBout <- EBSeq::EBTest(Data=GeneMatBobj,sizeFactors=SizesB, Conditions=as.factor(rep(c("L","D"),each=3)), maxround=5)
+```
+
+### Perform Differential Expression
+```{r}
+# Get the differential expression results :
+    # List of 3: DEfound (genes deemed differentially expressed), PPMat (PPEE & PPDE of each gene), Status (whether EE or DE for each gene)
+library("dplyr")
+EBDEResWTobj <- EBSeq::GetDEResults(EBWTout, FDR=0.05, Threshold_FC=0.55)
+length(EBDEResWTobj$DEfound)
+EBDEResBobj <- EBSeq::GetDEResults(EBBout, FDR=0.05, Threshold_FC=0.55)
+length(EBDEResBobj$DEfound)
+# Create a dataframe with PPEE (probability of equally expressed) & PPDE (probability of differentially expressed) of each DIFF EXP gene
+```
+When the False Discovery Rate (FDR) is 0.05 and the minimum absolute value of fold change is 1.8, WT has 434 differentially expressed genes while ∆BlsA has 120 differentially expressed genes.
+
+### Check Model (Pre-Analysis)
+```{r}
+# Check the assumption of a Beta prior and model fit
+par(mfrow=c(1,2))
+QQP(EBWTout)
+# Visualize the comparison between FC and PostFC 
+PlotPostVsRawFC(EBWTout, GeneFCWT)
+PlotPostVsRawFC(EBBout, GeneFCB)
+```
+
+The QQ-plots show that the the empirical q's and simulated q's from teh Beta prior distribution with the estimated hyper-parameters fit, indicating that the ditribution is appropriate. The model is also a good fit. Therefore, we can continue.
+
+According to the PostFC/FC plots, it seems that some genes had significant differences. This is particularly common for genes with low expressions where it shrinks the PostFC (as observed with those below the line).
+
+### Normalizing Data
+```{r}
+# Normalized based on median ratio
+NormEBDEResWTobj <- GetNormalizedMat(GeneMatWTobj, Sizes=SizesW)
+NormEBDEResBobj <- GetNormalizedMat(GeneMatBobj, Sizes=SizesB)
+```
+
+## Post-Data Analysis
+
+### Amalgamating & Saving Data
+
+```{r Creating Matrixes, echo=FALSE}
+DEgenesWT <- as.vector(EBDEResWTobj$DEfound)
+PPMatrixWT <- data.frame(EBDEResWTobj$PPMat)
+DEgenesB <- as.vector(EBDEResBobj$DEfound)
+PPMatrixB <- data.frame(EBDEResBobj$PPMat)
+PPMatrixBout <- data.frame(EBBout$PPMat)
+# Getting all PP data
+PPMatrix2WT <- tibble::rownames_to_column(PPMatrixWT, "genes")
+PPMatrix2B <- tibble::rownames_to_column(PPMatrixB, "genes")
+# Getting FC and PostFC for all genes 
+GeneFCWT <- tibble::rownames_to_column(data.frame(PostFC(EBWTout)), "genes2") # it does Dark/Light # need to make the genes a column to filter
+GeneFCB <- tibble::rownames_to_column(data.frame(PostFC(EBBout)), "genes2") # it does Dark/Light # need to make the genes a column to filter
+# Getting all appropriate PP data for Final Final
+PPMatrix3WT <- PPMatrix2WT[which(PPMatrix2WT[,"genes"] %in% GeneFCWT$genes2),]
+PPMatrix3B <- PPMatrix2B[which(PPMatrix2B[,"genes"] %in% GeneFCB$genes2),]
+
+
+# Append FC data to matrix & delete second genes column
+FinalMatrixWT <- cbind(PPMatrix3WT, GeneFCWT)
+FinalMatrixWT <- FinalMatrixWT[,!(names(FinalMatrixWT)=="genes2")] # remove the 2nd genes column
+FinalMatrixB <- cbind(PPMatrix3B, GeneFCB)
+FinalMatrixB <- FinalMatrixB[,!(names(FinalMatrixB)=="genes2")] # remove the 2nd genes column
+
+### Repeat for DE genes
+# Getting PP data only for DE
+PPMatrixDEWT <- PPMatrix2WT[which(PPMatrix2WT[,"genes"] %in% DEgenesWT),]
+PPMatrixDEB <- PPMatrix2B[which(PPMatrix2B[,"genes"] %in% DEgenesB),]
+# Getting FC and PostFC for DE genes (D/L)
+GeneFCWTDE <- GeneFCWT[which(GeneFCWT[,"genes2"] %in% DEgenesWT),] # filter so only DE
+GeneFCBDE <- GeneFCB[which(GeneFCB[,"genes2"] %in% DEgenesB),] # filter so only DE
+# Append FC data to matrix & delete second genes column
+FinalMatrixDEWT <- cbind(PPMatrixDEWT, GeneFCWTDE)
+FinalMatrixDEWT <- FinalMatrixDEWT[,!(names(FinalMatrixDEWT)=="genes2")] # remove the 2nd genes column
+FinalMatrixDEB <- FinalMatrixB[,!(names(FinalMatrixB)=="genes2")] # remove the 2nd genes column
+FinalMatrixDEB <- cbind(PPMatrixDEB, GeneFCBDE)
+FinalMatrixDEB <- FinalMatrixB[,!(names(FinalMatrixB)=="genes2")] # remove the 2nd genes column
+```
+
+
+```{r Saving data as files, echo=FALSE}
+NormEBResWTdf <- tibble::rownames_to_column(data.frame(NormEBDEResWTobj), "genes2") 
+NormEBResBdf <- tibble::rownames_to_column(data.frame(NormEBDEResBobj), "genes2") 
+NormEBResWTdf <- NormEBResWTdf[which(NormEBResWTdf[,"genes2"] %in% GeneFCWT$genes2),]
+NormEBResBdf <- NormEBResBdf[which(NormEBResBdf[,"genes2"] %in% GeneFCB$genes2),]
+NormEBDEResWTDEdf <- NormEBResWTdf[which(NormEBResWTdf[,"genes2"] %in% DEgenesWT),]
+NormEBDEResBDEdf <- NormEBResWTdf[which(NormEBResWTdf[,"genes2"] %in% DEgenesB),]
+# All Data
+FinalMatrixWT <- cbind(PPMatrix3WT, GeneFCWT, NormEBResWTdf)
+FinalMatrixWT <- FinalMatrixWT[,!(names(FinalMatrixWT)=="genes2")] # remove the 2nd genes column
+FinalMatrixB <- cbind(PPMatrix3B, GeneFCB, NormEBResBdf)
+FinalMatrixB <- FinalMatrixB[,!(names(FinalMatrixB)=="genes2")] # remove the 2nd genes column
+write.csv(FinalMatrixB, file = '~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/GeneFCB.csv')
+write.csv(FinalMatrixWT, file = '~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/GeneFCWT.csv')
+# Just DE data
+FinalMatrixDEWT <- cbind(PPMatrixDEWT, GeneFCWTDE, NormEBDEResWTDEdf)
+FinalMatrixDEWT <- FinalMatrixDEWT[,!(names(FinalMatrixDEWT)=="genes2")]
+FinalMatrixDEB <- cbind(PPMatrixDEB, GeneFCBDE, NormEBDEResBDEdf)
+FinalMatrixDEB <- FinalMatrixDEB[,!(names(FinalMatrixDEB)=="genes2")]
+# Create final matrix file
+write.csv(FinalMatrixDEWT, "~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/FinalMatrixDEWT.csv")
+write.csv(FinalMatrixDEB, "~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/FinalMatrixDEB.csv")
+```
+
+### Comparing Data
+
+```{r Visualization, echo=FALSE}
+BlsA <- read.csv("~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/FinalMatrixDEBlsA2.csv")
+WT <- read.csv("~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/FinalMatrixDEWT2.csv")
+Shared <- as.vector(WT[which(WT$genes %in% BlsA$genes),])
+write.csv(Shared, "~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/FinalMatrixDEShared2.csv")
+BlsAgenes <- as.vector(BlsA[which(!(BlsA$genes %in% WT$genes)),])
+write.csv(BlsAgenes, "~/Desktop/Acinetobacter Baumanii/RNASeqPhrB/RNASeqPhrB_files/FinalMatrixDEBonly2.csv")
+```
+
+In this case, the # of genes differentially expressed for WT and ∆BlsA was 368 and 82, respectively. 53 genes are differentially expressed in both WT and ∆BlsA, indicating that these genes are regulated by light independently of BlsA. The remaining 29 genes are differentially expressed in ∆BlsA but not WT, indicating that these genes are only differentially expressed when BlsA is not in the genome at 24ªC.
+
+### Visualizing Data
+
+#### Venn Diagram of WT & ∆BlsA genes
+```{r Visualization, echo=FALSE}
+# list of WT only, ∆BlsA only, and shared
+listWT = as.list(WT$genes)
+listB = as.list(BlsA$genes)
+x = list(listWT, listB)
+venn.diagram(x, filename='vennattempt', category.names = c("WT", "∆BlsA"), fill=c("#00e2e6", "#f55d4c"), cat.cex = 1, cat.fontface = "bold", imagetype = 'tiff', compression='lzw')
+
+```
+
+```{r Visualization, echo=FALSE}
+#NormEBDEResWTdf <- tibble::remove_rownames(NormEBDEResWTdf)
+#NormEBDEResWTdf <- tibble::column_to_rownames(NormEBDEResWTdf, "genes2")
+#dev.off()
+#heatmap.2(as.matrix(NormEBDEResWTobj), scale="row", trace="none", Colv=F, labCol=c("L1", "L2", "L3", "D1", "D2", "D3"))
+
+# Volcano Plot for WT
+volc_df = data.frame(EBWTout$PPDE, GeneFCWT$PostFC)
+with(volc_df, plot(log2(GeneFCWT.PostFC), EBWTout.PPDE, pch=20, main="Volcano Plot EBSeq WT", xlim=c(-5,5)))
+abline(h=0.95)
+with(subset(volc_df, EBWTout.PPDE > 0.95 & abs(log2(GeneFCWT.PostFC)) < 2), points(log2(GeneFCWT.PostFC), EBWTout.PPDE, pch=20, col="orange"))
+with(subset(volc_df, EBWTout.PPDE > 0.95 & abs(log2(GeneFCWT.PostFC)) >2), points(log2(GeneFCWT.PostFC), EBWTout.PPDE, pch=20, col="red"))
+# Volcano Plot for BlsA
+volc_df = data.frame(EBBout$PPDE, GeneFCB$PostFC)
+with(volc_df, plot(log2(GeneFCB.PostFC), EBBout.PPDE, pch=20, main="Volcano Plot EBSeq ∆BlsA", xlim=c(-5,5)))
+abline(h=0.95)
+with(subset(volc_df, EBBout.PPDE > 0.95 & abs(log2(GeneFCB.PostFC)) < 2), points(log2(GeneFCB.PostFC), EBBout.PPDE, pch=20, col="orange"))
+with(subset(volc_df, EBBout.PPDE > 0.95 & abs(log2(GeneFCB.PostFC)) >2), points(log2(GeneFCB.PostFC), EBBout.PPDE, pch=20, col="red"))
+
+```
+
+Orange and red indicate where the fold change is less than or greater than 2, respectively, but the gene is considered differentially expressed. 

@@ -1,0 +1,93 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2513
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica-Bold;\f1\fswiss\fcharset0 Helvetica;\f2\fswiss\fcharset0 Helvetica-Oblique;
+\f3\fnil\fcharset0 HelveticaNeue;}
+{\colortbl;\red255\green255\blue255;\red251\green2\blue255;\red251\green2\blue255;}
+{\*\expandedcolortbl;;\cssrgb\c100000\c25279\c100000;\cssrgb\c100000\c25279\c100000;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{hyphen\}}{\leveltext\leveltemplateid2\'01\uc0\u8259 ;}{\levelnumbers;}\fi-360\li1440\lin1440 }{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid3\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li2160\lin2160 }{\listname ;}\listid1}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\b\fs26 \cf0 \ul \ulc0 24C RNA-seq analysis WT & \uc0\u8710 BlsA by Hope Townsend 2022
+\f1\b0 \ulnone  
+\f2\i (from Brock\'92s original fastq files)
+\f0\i0\b \
+\
+
+\f1\b0 The data was analyzed using two different statistical methods, DESeq & EBSeq. DESeq is more readily used by the scientific community but EBSeq is better known for experiments with low biological replicates such as ours. Both produced similar results (originally both done to see if it could explain the strange results) so you can choose which you prefer based on the output provided. \
+
+\f0\b \
+\ul EBSeq:
+\f1\b0\fs24 \ulnone \
+	All differential expression analysis was done on 
+\f0\b RNASeqPhrB.Rmd
+\f1\b0  file using R 4.1.2. The 	preanalysis figures and analysis is found \ul in this file\ulnone  as well as the code used for all analysis. To 	use this file, the folder exp3 & this document must be in the same folder together.\
+		**While DESeq using adjusted p-values to determine significance, EBSeq using 		False 	Discovery Rates (FDR) and PPDE (posterior probability for DE).\
+\
+	
+\f0\b Initial
+\f1\b0  Result files can be found in the folder RNASeqPhrB_files:\
+		- GeneFC**.csv = Data (PPDE, FC, expression levels) for all genes. This is what would 		be used as the expression file uploaded to NCBI.\
+		- FinalMatrixDE**.csv = Same as above but ONLY for differentially expressed genes\
+	
+\f0\b Analyzed
+\f1\b0  Result files can be found in the folder EBSeq:\
+		- 
+\f0\b \cf2 Final**EB.csv/.xlsx 
+\f1\b0 \cf0 = FinalMatrixDE but with BLAST information included (Protein ID, 			alternative locus b/n A!S and ACX60 genomes) using the python script 			Comparing results Final.py. Xlsx file is sorted & color coded based on 			likely operons. \
+			- ALL indicates ALL genes rather than just DE genes\
+		- Vennattempt = Venn diagram produced from R block Visualization
+\f0\b\fs26 \
+\
+DESeq:
+\f1\b0\fs24 \
+	All differential expression analysis was done on 
+\f0\b RNASeqDEseq.Rmd
+\f1\b0  file using R 4.1.2. The 	appropriate figures and information can be found \ul in this file\ulnone . To use this file, the folder exp3 & 	this document must be in the same folder together.\
+\
+	The comprehensive report can be looked at by running the Visualization block of code (lines 	142-146).\
+\
+	Files in exp3:\
+		- **_norm.csv = normalized expression values for each gene\
+		- **_results = differential expression results with log2FC, p-values, and normalized 			expression values for each gene\
+		- **.txt = data obtained from RSEM expression analysis\
+		- 
+\f0\b \cf3 DESeqBlsA.csv/.xlsx
+\f1\b0 \cf0  = _results but with BLAST info included (Protein ID, alternative 			locus b/n A1S and ACX60 genome) using the python script 				Comparing results Final.py. Xlsx file is sorted & color coded based on 			likely operons. \
+\
+\
+\
+Prep Files:\
+	- ReadMe:\
+		- RNASeq24PhrB.xlsx: file for potential upload to NIH\
+		- TerminalCodeRNASeq24PhrB: all terminal code & results used for alignment, 		trimming, and RSEM\
+	- Genomes: Used for reference genome development (ref2: non NZ; ref3: NZ) for alignment. 		pAB3 was included.\
+	- FastQC files: Files with the FastQC results\
+	- Intermediate Results: Alignment & TrimGalore results \
+\
+Applicable versions/parameters:\
+\pard\tx220\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li720\fi-720\pardirnatural\partightenfactor0
+\ls1\ilvl0\cf0 {\listtext	\uc0\u8226 	}Trimming\
+\pard\tx940\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li1440\fi-1440\pardirnatural\partightenfactor0
+\ls1\ilvl1\cf0 {\listtext	\uc0\u8259 	}Trim Galore vs 0.6.6\
+{\listtext	\uc0\u8259 	}Cutadapt vs 3.5\
+{\listtext	\uc0\u8259 	}Quality Phred score cut off of 20\
+\pard\tx220\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li720\fi-720\pardirnatural\partightenfactor0
+\ls1\ilvl0\cf0 {\listtext	\uc0\u8226 	}FastQC Report\
+\pard\tx940\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li1440\fi-1440\pardirnatural\partightenfactor0
+\ls1\ilvl1\cf0 {\listtext	\uc0\u8259 	}All Phred Quality scores were above 34 before and after trimming\
+\pard\tx220\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li720\fi-720\pardirnatural\partightenfactor0
+\ls1\ilvl0\cf0 {\listtext	\uc0\u8226 	}% reads that aligned using bowtie2 (orig files found in Intermediate results)\
+\pard\tx940\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li1440\fi-1440\pardirnatural\partightenfactor0
+\ls1\ilvl1\cf0 {\listtext	\uc0\u8259 	}
+\f3 BlsA\
+\pard\tx1660\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li2160\fi-2160\pardirnatural\partightenfactor0
+\ls1\ilvl2\cf0 {\listtext	\uc0\u8226 	}D: 66.11% (4839032), 67.27% (9081938), 75.07% (10760765)\
+{\listtext	\uc0\u8226 	}L: 69.13% (8812550), 67.64% (6595187), 69.28% (3635417)\
+\pard\tx940\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li1440\fi-1440\pardirnatural\partightenfactor0
+\ls1\ilvl1\cf0 {\listtext	\uc0\u8259 	}WT\
+\pard\tx1660\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\li2160\fi-2160\pardirnatural\partightenfactor0
+\ls1\ilvl2\cf0 {\listtext	\uc0\u8226 	}D: 68.25% (4442749), 67.76% (4633502), 64.34% (4717348)\
+{\listtext	\uc0\u8226 	}L: 68.94% (8191667), 70.34% (7348973), 68.15% (6428652)
+\f1 \
+}

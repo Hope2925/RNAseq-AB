@@ -1,0 +1,162 @@
+---
+title: "RNASeqDEseq"
+author: "Hope Townsend"
+date: "4/7/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(BiocManager)
+library(tximport)
+library(tximportData)
+library(DESeq2)
+library(regionReport)
+```
+
+## R Markdown
+
+
+```{r tables}
+# Create tables for L/D expression results for ∆BlsA
+files = "exp3/BlsA/GeneMatBlsA.txt"
+tabL <- as.table(matrix(c("BlsAL1genes.results","BlsAL2genes.results","BlsAL3genes.results"), ncol=1))
+tabD <- as.table(matrix(c("BlsAD1genes.results", "BlsAD2genes.results", "BlsAD3genes.results"), ncol=1))
+files <- c(file.path("exp3", "BlsAL", tabL), (file.path("exp3", "BlsAD",tabD)))
+names(files) <- paste0(c(tabL, tabD))
+
+# Create tables for L/D expression results for WT
+filesW = "exp3/WT/GeneMatWT.txt"
+tabLW <- as.table(matrix(c("WTL1genes.results","WTL2genes.results","WTL3genes.results"), ncol=1))
+tabDW <- as.table(matrix(c("WTD1genes.results", "WTD2genes.results", "WTD3genes.results"), ncol=1))
+filesW <- c(file.path("exp3", "WTL", tabLW), (file.path("exp3", "WTD",tabDW)))
+names(filesW) <- paste0(c(tabLW, tabDW))
+```
+
+## Actual Analysis
+
+```{r pressure, echo=FALSE}
+## BlsA
+# # read in data
+cts <- as.matrix(read.table(file="exp3/BlsA/GeneMatBlsA.txt"))
+# create Experiment Data
+coldata <- as.matrix.data.frame(matrix(c("light", "light", "light", "dark", "dark","dark","paired-end","paired-end","paired-end","paired-end","paired-end","paired-end"), ncol=2), colnames=c("condition", "type"))
+colnames(coldata) <- c("condition", "type")
+all(rownames(coldata) == colnames(cts))
+# Perform DESeq analysis
+dds <- DESeqDataSetFromMatrix(countData=round(cts), colData=coldata, design = ~ condition)
+dds <- DESeq(dds)
+res <- results(dds)
+res <- results(dds, name="condition_light_vs_dark")
+res <- results(dds, contrast=c("condition", "light","dark"))
+
+## WT
+# read in data
+ctsW <- as.matrix(read.table(file="exp3/WT/GeneMatWT.txt"))
+# create Experiment Data
+coldataW <- as.matrix.data.frame(matrix(c("light", "light", "light", "dark", "dark","dark","paired-end","paired-end","paired-end","paired-end","paired-end","paired-end"), ncol=2), colnames=c("condition", "type"))
+colnames(coldataW) <- c("condition", "type")
+all(rownames(coldataW) == colnames(ctsW))
+# Perform DESeq analysis
+ddsW <- DESeqDataSetFromMatrix(countData=round(ctsW), colData=coldataW, design = ~ condition)
+ddsW <- DESeq(ddsW)
+resW <- results(ddsW)
+resW <- results(ddsW, name="condition_light_vs_dark")
+resW <- results(ddsW, contrast=c("condition", "light","dark"))
+```
+
+## Normalizing data
+```{r pressure, echo=FALSE}
+## BlsA
+#normalize data & save to matrix
+Normdata <- estimateSizeFactors(dds); 
+Normdata <- as.matrix(data.frame(counts(Normdata, normalized=TRUE)))
+#save normalized data to csv file
+write.csv(Normdata, file='exp3/BlsALD_DEseq_norm.csv')
+
+## WT
+#normalize data & save to matrix
+NormdataW <- estimateSizeFactors(ddsW); 
+NormdataW <- as.matrix(data.frame(counts(NormdataW, normalized=TRUE)))
+#save normalized data to csv file
+write.csv(NormdataW, file='exp3/WTLD_DEseq_norm.csv')
+```
+
+## Testing cut offs for p-values and adjusted p-values
+```{r}
+## BlsA
+resOrdered <- res[order(res$pvalue),]
+sum(res$padj <0.05, na.rm=TRUE)
+summary(res)
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+sum(res05$padj <0.1, na.rm=TRUE)
+## WT
+resOrderedW <- resW[order(resW$pvalue),]
+sum(resW$padj <0.001, na.rm=TRUE)
+res05W <- results(ddsW, alpha=0.05)
+summary(res05W)
+```
+
+#### ∆BlsA
+In ∆BlsA, with a p-value cut off of 0.1, 115 genes are considered differentially expressed: 74 up (2% of 3786 total genes) & 41 down (1.1%).
+
+In ∆BlsA, with a p-value cut off of 0.05, 53 genes are considered differentially expressed: 30 up (0.79% of 3786 total genes) & 23 down (0.61%).
+
+#### WT
+In WT, with a p-value cut off of 0.05, 998 genes are considered differentially expressed: 534 up (14% of 3786 total genes) & 464 down (12%).
+
+In WT, with a p-value cut off of 0.01, 658 genes are considered DE: 355 up (9.4%) & 303 down (8%). 
+
+In WT, with a p-value cut off of 0.001 (same as used by Tuttobene et. al for 19606), 396 genes are considered DE: 211 up (5.6%) & 185 down (4.9%).
+
+## Exploring and exporting results
+```{r}
+plotMA(res, ylim=c(-2,2))
+plotMA(resLFC, ylim=c(-5,5), main="Log Fold change for ∆BlsA")
+```
+## Transform the data for visualization
+```{r}
+## Transform count data
+rld <- tryCatch(rlog(dds), error = function(e) { rlog(dds, fitType = 'mean') })
+
+# log fold shrinkage for visualization using a different method (optional)
+# resultsNames(dds)
+# resLFC <- lfcShrink(dds, coef="condition_light_vs_dark", type="apeglm")
+```
+
+## Visualization
+```{r}
+## Obtain the sample euclidean distances
+sampleDists <- dist(t(assay(rld)))
+sampleDistMatrix <- as.matrix(sampleDists)
+## Add names based on intgroup
+rownames(sampleDistMatrix) <- c("∆BlsAL1", "∆BlsAL2", "∆BlsAL3","∆BlsAD1", "∆BlsAD2", "∆BlsAD3")
+colnames(sampleDistMatrix) <- NULL
+
+## Define colors to use for the heatmap if none were supplied
+#colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+
+## Make the heatmap
+#pheatmap(sampleDistMatrix, clustering_distance_rows = sampleDists, clustering_distance_cols = sampleDists, color=colors)
+#print(dds@colData)
+
+## Print the DESeq2Report
+regionReport::DESeq2Report(dds, project="BlsA", intgroup=c("condition", "type", "sizeFactor"), colors=NULL, res =NULL, nBest=500, nBestFeatures=20, customCode=NULL, outidr="DESeq2Exploration", output="DESeq2Exploration", browse=interactive())
+```
+
+## Add all normalized data to a results CSV
+```{r}
+## ∆BlsA
+AllB <- cbind(as.data.frame(res), Normdata)
+write.csv(AllB, file='exp3/BlsALDALL_DEseq_results.csv')
+resSig <- subset(AllB, padj < 0.1)
+write.csv(as.data.frame(resSig), file='exp3/BlsALD_DEseq_results.csv')
+
+## WT
+AllW <- cbind(as.data.frame(resW), NormdataW)
+write.csv(AllW, file='exp3/WTLDALL_DEseq_results.csv')
+resSigW <- subset(AllW, padj < 0.05)
+write.csv(as.data.frame(resSigW), file='exp3/WTLD_DEseq_results.csv')
+```
+
