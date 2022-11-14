@@ -1,7 +1,7 @@
 # RNAseq-AB
-Platform for performing and comparing differential expression RNA-seq results from EBseq &amp; DEseq analysis with applicable add-ons of GFF3 data.
+Platform for performing and comparing differential expression RNA-seq results from EBseq &amp; DEseq analysis with applicable add-ons of GFF3 data. Notably, this platform was used to assess transcriptomic data for *Acinetobacter baumannii* and is used as a reference for how the analysis was conducted as well as guidelines for a similar pipeline, not as a ready to use pipeline itself.
 
-**All Coding Files can be found in "master."**
+**All Coding Files can be found in the "master" branch.**
 
 Expression files can be analyzed using two different statistical methods, DESeq & EBSeq. DESeq is more readily used by the scientific community but EBSeq is better known for experiments with low biological replicates. 
 
